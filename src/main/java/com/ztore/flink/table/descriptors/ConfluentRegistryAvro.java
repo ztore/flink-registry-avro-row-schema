@@ -3,6 +3,7 @@ package com.ztore.flink.table.descriptors;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -12,6 +13,7 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
     private Class<? extends SpecificRecord> recordClass;
     private String avroSchema;
     private String registryUrl;
+    private Boolean deriveSchema;
 
     /**
      * Format descriptor for Apache Avro records with Confluent Schema registry.
@@ -53,6 +55,14 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
         return this;
     }
 
+    /**
+     * Enable derive table schema from Avro
+     */
+    public ConfluentRegistryAvro deriveSchema() {
+        this.deriveSchema = true;
+        return this;
+    }
+
     @Override
     protected Map<String, String> toFormatProperties() {
         final DescriptorProperties properties = new DescriptorProperties();
@@ -64,6 +74,15 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
         if (null != avroSchema) {
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA, avroSchema);
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
+        }
+
+        if (deriveSchema) {
+            if (null != recordClass) {
+                properties.putProperties(new AvroSchema().recordClass(recordClass).toProperties());
+            }
+            if (null != avroSchema) {
+                properties.putProperties(new AvroSchema().avroSchema(avroSchema).toProperties());
+            }
         }
 
         return properties.asMap();
