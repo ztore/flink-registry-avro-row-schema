@@ -19,6 +19,7 @@ import org.apache.flink.formats.avro.SchemaCoder;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeFieldType;
 import org.joda.time.LocalDate;
@@ -33,7 +34,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.*;
 
-public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> implements DeserializationSchema<Row> {
+public class RegistryAvroRowDeserializationSchema implements DeserializationSchema<Row> {
 
     private static final long serialVersionUID = 61736557687436545L;
 
@@ -49,7 +50,7 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
     private transient SchemaCoder schemaCoder;
 
     /** Avro record class for deserialization. */
-    private Class<T> recordClazz;
+    private Class<? extends SpecificRecord> recordClazz;
 
     /**
      * Schema string for deserialization.
@@ -74,7 +75,7 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
     /**
      * Reader that deserializes byte array into a record.
      */
-    private transient SpecificDatumReader<IndexedRecord> datumReader;
+    private transient GenericDatumReader<IndexedRecord> datumReader;
 
     /**
      * Input stream to read message from.
@@ -87,14 +88,17 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
     private transient Decoder decoder;
 
     /**
-     * Creates Avro deserialization schema that reads schema from input stream using provided {@link SchemaCoder}.
+     * Creates Avro deserialization schema for the given specific record class,
+     * that reads schema from input stream using provided {@link SchemaCoder}.
      *
-     * @param recordClazz         class to which deserialize. Should be {@link SpecificRecord}.
+     * @param recordClazz         Avro record class used to deserialize Avro's record to Flink's row.
+     *                            Should be {@link SpecificRecord}.
      * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
      *                            schema reading
      */
-    protected RegistryAvroRowDeserializationSchema(Class<T> recordClazz,
+    protected RegistryAvroRowDeserializationSchema(Class<? extends SpecificRecord> recordClazz,
                                                  SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+        Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
         this.recordClazz = recordClazz;
         this.schemaCoderProvider = schemaCoderProvider;
         schemaCoder = schemaCoderProvider.get();
@@ -107,13 +111,38 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
         decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
     }
 
+    /**
+     * Creates Avro deserialization schema for the given Avro schema string,
+     * that reads schema from input stream using provided {@link SchemaCoder}.
+     *
+     * @param avroSchemaString    Avro schema string to deserialize Avro's record to Flink's row
+     * @param schemaCoderProvider schema provider that allows instantiation of {@link SchemaCoder} that will be used for
+     *                            schema reading
+     */
+    protected RegistryAvroRowDeserializationSchema(String avroSchemaString,
+                                                   SchemaCoder.SchemaCoderProvider schemaCoderProvider) {
+        Preconditions.checkNotNull(avroSchemaString, "Avro schema must not be null.");
+        recordClazz = null;
+        final TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(avroSchemaString);
+        Preconditions.checkArgument(typeInfo instanceof RowTypeInfo, "Row type information expected.");
+        this.typeInfo = (RowTypeInfo) typeInfo;
+        schemaString = avroSchemaString;
+        schema = new Schema.Parser().parse(avroSchemaString);
+        this.schemaCoderProvider = schemaCoderProvider;
+        schemaCoder = schemaCoderProvider.get();
+        record = new GenericData.Record(schema);
+        datumReader = new GenericDatumReader<>(schema);
+        inputStream = new MutableByteArrayInputStream();
+        decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+    }
+
     @Override
     public Row deserialize(byte[] message) throws IOException {
         checkAvroInitialized();
         try {
             getInputStream().setBuffer(message);
             Schema writerSchema = schemaCoder.readSchema(getInputStream());
-            SpecificDatumReader<IndexedRecord> reader = getDatumReader();
+            GenericDatumReader<IndexedRecord> reader = getDatumReader();
             reader.setSchema(writerSchema);
             reader.setExpected(schema);
             record = reader.read(record, decoder);
@@ -151,11 +180,11 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
         return Objects.hash(recordClazz, schemaString);
     }
 
-    SpecificDatumReader<IndexedRecord> getDatumReader() {
+    private GenericDatumReader<IndexedRecord> getDatumReader() {
         return datumReader;
     }
 
-    MutableByteArrayInputStream getInputStream() {
+    private MutableByteArrayInputStream getInputStream() {
         return inputStream;
     }
 
@@ -163,7 +192,7 @@ public class RegistryAvroRowDeserializationSchema<T extends  SpecificRecord> imp
         return decoder;
     }
 
-    void checkAvroInitialized() {
+    private void checkAvroInitialized() {
         if (datumReader == null) {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             SpecificData specificData = new SpecificData(cl);
