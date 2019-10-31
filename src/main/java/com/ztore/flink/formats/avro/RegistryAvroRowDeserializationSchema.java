@@ -193,17 +193,26 @@ public class RegistryAvroRowDeserializationSchema implements DeserializationSche
     }
 
     private void checkAvroInitialized() {
-        if (datumReader == null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (datumReader != null) {
+            return;
+        }
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
             SpecificData specificData = new SpecificData(cl);
             this.datumReader = new SpecificDatumReader<>(specificData);
             this.schema = specificData.getSchema(recordClazz);
             this.typeInfo = (RowTypeInfo) AvroSchemaConverter.convertToTypeInfo(recordClazz);
-            this.schemaString = schema.toString();
             this.record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
-            this.inputStream = new MutableByteArrayInputStream();
-            this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+        } else {
+            this.schema = new Schema.Parser().parse(schemaString);
+            GenericData genericData = new GenericData(cl);
+            this.datumReader = new GenericDatumReader<>(null, this.schema, genericData);
+            final TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaString);
+            this.typeInfo = (RowTypeInfo) typeInfo;
+            this.record = new GenericData.Record(schema);
         }
+        this.inputStream = new MutableByteArrayInputStream();
+        this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
         if (schemaCoder == null) {
             this.schemaCoder = schemaCoderProvider.get();
         }

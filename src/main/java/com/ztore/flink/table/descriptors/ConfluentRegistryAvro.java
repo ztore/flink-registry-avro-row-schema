@@ -11,6 +11,7 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
 
     private Class<? extends SpecificRecord> recordClass;
     private String avroSchema;
+    private String registryUrl;
 
     /**
      * Format descriptor for Apache Avro records with Confluent Schema registry.
@@ -41,15 +42,28 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
         return this;
     }
 
+    /**
+     * Sets URL of Confluent Schema Registry.
+     *
+     * @param registryUrl url of Confluent Schema Registry
+     */
+    public ConfluentRegistryAvro registryUrl(String registryUrl) {
+        Preconditions.checkNotNull(registryUrl);
+        this.registryUrl = registryUrl;
+        return this;
+    }
+
     @Override
     protected Map<String, String> toFormatProperties() {
         final DescriptorProperties properties = new DescriptorProperties();
 
         if (null != recordClass) {
             properties.putClass(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS, recordClass);
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
         if (null != avroSchema) {
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA, avroSchema);
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
 
         return properties.asMap();
