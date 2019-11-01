@@ -1,1 +1,1 @@
-com.ztore.flink.formats.avro.ConfluentRegistryAvroRowFormatFactory
+com.ztore.flink.formats.avro.registry.confluent.ConfluentRegistryAvroRowFormatFactory

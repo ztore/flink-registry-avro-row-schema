@@ -1,4 +1,4 @@
-package com.ztore.flink.formats.avro;
+package com.ztore.flink.formats.avro.registry.confluent;
 
 import com.ztore.flink.formats.avro.typeutils.RowToAvroSchemaConverter;
 import com.ztore.flink.table.descriptors.ConfluentRegistryAvroValidator;

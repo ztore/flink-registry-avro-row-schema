@@ -1,5 +1,6 @@
-package com.ztore.flink.formats.avro;
+package com.ztore.flink.formats.avro.registry.confluent;
 
+import com.ztore.flink.formats.avro.RegistryAvroRowDeserializationSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.formats.avro.SchemaCoder;
