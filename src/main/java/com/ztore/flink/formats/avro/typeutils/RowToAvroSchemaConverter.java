@@ -24,7 +24,7 @@ public class RowToAvroSchemaConverter {
                 namespace);
     }
 
-    public static Schema convertRecord(RowType rowType, String fieldName, String namespace) {
+    private static Schema convertRecord(RowType rowType, String fieldName, String namespace) {
         return Schema.createRecord(fieldName, "", namespace, false,
             rowType.getFields().stream().map(
                     p -> new Schema.Field(p.getName(), convertDataType(p.getType(), namespace))
