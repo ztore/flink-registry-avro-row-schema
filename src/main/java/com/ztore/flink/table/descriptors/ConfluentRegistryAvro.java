@@ -12,8 +12,10 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
 
     private Class<? extends SpecificRecord> recordClass;
     private String avroSchema;
+    private String namespace;
+    private String recordName;
     private String registryUrl;
-    private Boolean deriveSchema;
+    private Boolean deriveSchema = false;
 
     /**
      * Format descriptor for Apache Avro records with Confluent Schema registry.
@@ -45,6 +47,18 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
     }
 
     /**
+     * Sets the Avro namespace for converting table schema to Avro schema.
+     *
+     * @param namespace Avro schema string
+     */
+    public ConfluentRegistryAvro fromTableSchema(String namespace, String recordName) {
+        Preconditions.checkNotNull(namespace);
+        this.namespace = namespace;
+        this.recordName = recordName;
+        return this;
+    }
+
+    /**
      * Sets URL of Confluent Schema Registry.
      *
      * @param registryUrl url of Confluent Schema Registry
@@ -58,7 +72,7 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
     /**
      * Enable derive table schema from Avro
      */
-    public ConfluentRegistryAvro deriveSchema() {
+    public ConfluentRegistryAvro deriveTableSchema() {
         this.deriveSchema = true;
         return this;
     }
@@ -73,6 +87,11 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
         }
         if (null != avroSchema) {
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA, avroSchema);
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
+        }
+        if (null == avroSchema) {
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_NAMESPACE, namespace);
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_RECORD_NAME, recordName);
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
 

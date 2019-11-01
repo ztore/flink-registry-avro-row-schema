@@ -10,5 +10,7 @@ public class ConfluentRegistryAvroValidator extends FormatDescriptorValidator {
     public static final String FORMAT_TYPE_VALUE = "confluent-registry-avro";
     public static final String FORMAT_RECORD_CLASS = "format.record-class";
     public static final String FORMAT_AVRO_SCHEMA = "format.avro-schema";
+    public static final String FORMAT_AVRO_NAMESPACE = "format.avro-namespace";
+    public static final String FORMAT_AVRO_RECORD_NAME = "format.avro-record-name";
     public static final String FORMAT_REGISTRY_URL = "format.registry-url";
 }
