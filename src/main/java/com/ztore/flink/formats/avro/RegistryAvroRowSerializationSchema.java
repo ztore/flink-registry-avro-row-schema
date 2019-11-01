@@ -15,7 +15,6 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -36,7 +35,7 @@ import java.util.TimeZone;
 
 public class RegistryAvroRowSerializationSchema implements SerializationSchema<Row> {
 
-    private static final long serialVersionUID = 61736557687436545L;
+    private static final long serialVersionUID = 1436173617254354L;
 
     /**
      * Used for time conversions into SQL types.
@@ -61,21 +60,6 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
      * Avro serialization schema.
      */
     private transient Schema schema;
-
-    /**
-     * Type information describing the result type.
-     */
-    private transient RowTypeInfo typeInfo;
-
-    /**
-     * Record to deserialize byte array.
-     */
-    private transient IndexedRecord record;
-
-//    /**
-//     * Reader that deserializes byte array into a record.
-//     */
-//    private transient GenericDatumReader<IndexedRecord> datumReader;
 
     /**
      * Writer to serialize Avro record into a byte array.
@@ -109,7 +93,6 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
         schemaPublisher = schemaPublisherProvider.get();
         schema = SpecificData.get().getSchema(recordClazz);
         schemaString = schema.toString();
-        record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
         datumWriter = new SpecificDatumWriter<>(schema);
         arrayOutputStream = new ByteArrayOutputStream();
         encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
@@ -131,7 +114,6 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
         schema = new Schema.Parser().parse(avroSchemaString);
         this.schemaPublisherProvider = schemaPublisherProvider;
         schemaPublisher = schemaPublisherProvider.get();
-        record = new GenericData.Record(schema);
         datumWriter = new GenericDatumWriter<>(schema);
         arrayOutputStream = new ByteArrayOutputStream();
         encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
@@ -184,23 +166,19 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
     }
 
     private void checkAvroInitialized() {
-        if (datumWriter != null) {
-            return;
+        if (datumWriter == null) {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
+                SpecificData specificData = new SpecificData(cl);
+                this.datumWriter = new SpecificDatumWriter<>(schema);
+                this.schema = specificData.getSchema(recordClazz);
+            } else {
+                this.schema = new Schema.Parser().parse(schemaString);
+                this.datumWriter = new GenericDatumWriter<>(schema);
+            }
+            this.arrayOutputStream = new ByteArrayOutputStream();
+            this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
         }
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
-            SpecificData specificData = new SpecificData(cl);
-            this.datumWriter = new SpecificDatumWriter<>(schema);
-            this.schema = specificData.getSchema(recordClazz);
-            this.record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
-        } else {
-            this.schema = new Schema.Parser().parse(schemaString);
-            GenericData genericData = new GenericData(cl);
-            this.datumWriter = new GenericDatumWriter<>(schema);
-            this.record = new GenericData.Record(schema);
-        }
-        this.arrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
         if (schemaPublisher == null) {
             this.schemaPublisher = schemaPublisherProvider.get();
         }

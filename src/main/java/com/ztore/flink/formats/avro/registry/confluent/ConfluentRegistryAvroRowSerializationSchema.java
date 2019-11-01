@@ -40,7 +40,7 @@ public class ConfluentRegistryAvroRowSerializationSchema extends RegistryAvroRow
 
     private static class CachedSchemaPublisherProvider implements SchemaPublisher.SchemaPublisherProvider {
 
-        private static final long serialVersionUID = 213584805303644L;
+        private static final long serialVersionUID = 8701436325871250L;
         private final String url;
         private final int identityMapCapacity;
 
