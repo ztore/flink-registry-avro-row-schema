@@ -5,8 +5,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.*;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
@@ -25,7 +27,9 @@ import org.joda.time.DateTimeFieldType;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -138,7 +142,6 @@ public class RegistryAvroRowDeserializationSchema implements DeserializationSche
 
     @Override
     public Row deserialize(byte[] message) throws IOException {
-        checkAvroInitialized();
         try {
             getInputStream().setBuffer(message);
             Schema writerSchema = schemaCoder.readSchema(getInputStream());
@@ -190,32 +193,6 @@ public class RegistryAvroRowDeserializationSchema implements DeserializationSche
 
     Decoder getDecoder() {
         return decoder;
-    }
-
-    private void checkAvroInitialized() {
-        if (datumReader != null) {
-            return;
-        }
-        ClassLoader cl = Thread.currentThread().getContextClassLoader();
-        if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
-            SpecificData specificData = new SpecificData(cl);
-            this.datumReader = new SpecificDatumReader<>(specificData);
-            this.schema = specificData.getSchema(recordClazz);
-            this.typeInfo = (RowTypeInfo) AvroSchemaConverter.convertToTypeInfo(recordClazz);
-            this.record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
-        } else {
-            this.schema = new Schema.Parser().parse(schemaString);
-            GenericData genericData = new GenericData(cl);
-            this.datumReader = new GenericDatumReader<>(null, this.schema, genericData);
-            final TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaString);
-            this.typeInfo = (RowTypeInfo) typeInfo;
-            this.record = new GenericData.Record(schema);
-        }
-        this.inputStream = new MutableByteArrayInputStream();
-        this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
-        if (schemaCoder == null) {
-            this.schemaCoder = schemaCoderProvider.get();
-        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -367,6 +344,27 @@ public class RegistryAvroRowDeserializationSchema implements DeserializationSche
             convertedArray[i] = convertAvroType(elementSchema, elementInfo, list.get(i));
         }
         return convertedArray;
+    }
+
+    private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
+        inputStream.defaultReadObject();
+        if (recordClazz != null) {
+            schema = SpecificData.get().getSchema(recordClazz);
+            datumReader = new SpecificDatumReader<>(schema);
+            this.typeInfo = (RowTypeInfo) AvroSchemaConverter.convertToTypeInfo(recordClazz);
+            this.record = (IndexedRecord) SpecificData.newInstance(recordClazz, schema);
+        } else {
+            this.schema = new Schema.Parser().parse(schemaString);
+            datumReader = new GenericDatumReader<>(schema);
+            final TypeInformation<?> typeInfo = AvroSchemaConverter.convertToTypeInfo(schemaString);
+            this.typeInfo = (RowTypeInfo) typeInfo;
+            this.record = new GenericData.Record(schema);
+        }
+        this.inputStream = new MutableByteArrayInputStream();
+        this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+        if (schemaCoder == null) {
+            this.schemaCoder = schemaCoderProvider.get();
+        }
     }
 }
 

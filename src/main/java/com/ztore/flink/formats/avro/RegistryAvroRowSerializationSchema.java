@@ -121,7 +121,6 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
 
     @Override
     public byte[] serialize(Row row) {
-        checkAvroInitialized();
         try {
             // convert to record
             final GenericRecord record = convertRowToAvroRecord(schema, row);
@@ -163,25 +162,6 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
 
     Encoder getEncoder() {
         return encoder;
-    }
-
-    private void checkAvroInitialized() {
-        if (datumWriter == null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            if (recordClazz != null && SpecificRecord.class.isAssignableFrom(recordClazz)) {
-                SpecificData specificData = new SpecificData(cl);
-                this.datumWriter = new SpecificDatumWriter<>(schema);
-                this.schema = specificData.getSchema(recordClazz);
-            } else {
-                this.schema = new Schema.Parser().parse(schemaString);
-                this.datumWriter = new GenericDatumWriter<>(schema);
-            }
-            this.arrayOutputStream = new ByteArrayOutputStream();
-            this.encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
-        }
-        if (schemaPublisher == null) {
-            this.schemaPublisher = schemaPublisherProvider.get();
-        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -328,22 +308,17 @@ public class RegistryAvroRowSerializationSchema implements SerializationSchema<R
         }
     }
 
-    private void writeObject(ObjectOutputStream outputStream) throws IOException {
-        outputStream.writeObject(recordClazz);
-        outputStream.writeObject(schemaString); // support for null
-    }
-
-    @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
-        recordClazz = (Class<? extends SpecificRecord>) inputStream.readObject();
-        schemaString = (String) inputStream.readObject();
+        inputStream.defaultReadObject();
         if (recordClazz != null) {
             schema = SpecificData.get().getSchema(recordClazz);
+            datumWriter = new SpecificDatumWriter<>(schema);
         } else {
             schema = new Schema.Parser().parse(schemaString);
+            this.datumWriter = new GenericDatumWriter<>(schema);
         }
-        datumWriter = new SpecificDatumWriter<>(schema);
         arrayOutputStream = new ByteArrayOutputStream();
         encoder = EncoderFactory.get().binaryEncoder(arrayOutputStream, null);
+        this.schemaPublisher = schemaPublisherProvider.get();
     }
 }
