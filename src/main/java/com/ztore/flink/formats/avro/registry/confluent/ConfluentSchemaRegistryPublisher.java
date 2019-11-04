@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 public class ConfluentSchemaRegistryPublisher implements SchemaPublisher {
 
     private final SchemaRegistryClient schemaRegistryClient;
+    private final String subject;
     private static final byte MAGIC_BYTE = 0x0;
     private static final int idSize = 4;
 
@@ -21,14 +22,15 @@ public class ConfluentSchemaRegistryPublisher implements SchemaPublisher {
      *
      * @param schemaRegistryClient client to connect schema registry
      */
-    public ConfluentSchemaRegistryPublisher(SchemaRegistryClient schemaRegistryClient) {
+    public ConfluentSchemaRegistryPublisher(SchemaRegistryClient schemaRegistryClient, String subject) {
         this.schemaRegistryClient = schemaRegistryClient;
+        this.subject = subject;
     }
 
     @Override
     public void writeSchema(Schema schema, ByteArrayOutputStream out) throws RuntimeException {
         try {
-            int id = schemaRegistryClient.register("", schema);
+            int id = schemaRegistryClient.register(subject, schema);
             out.write(MAGIC_BYTE);
             out.write(ByteBuffer.allocate(idSize).putInt(id).array());
         } catch (IOException e) {

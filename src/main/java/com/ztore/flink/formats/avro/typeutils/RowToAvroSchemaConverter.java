@@ -17,10 +17,10 @@ public class RowToAvroSchemaConverter {
         // private
     }
 
-    public static Schema convertTableSchema(TableSchema tableSchema, String tableName, String namespace) {
+    public static Schema convertTableSchema(TableSchema tableSchema, String namespace) {
         return convertRecord(
                 (RowType) tableSchema.toRowDataType().getLogicalType(),
-                tableName,
+                "Value",
                 namespace);
     }
 

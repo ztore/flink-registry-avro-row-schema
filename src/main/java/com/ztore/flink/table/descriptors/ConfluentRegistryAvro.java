@@ -3,19 +3,20 @@ package com.ztore.flink.table.descriptors;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FormatDescriptor;
-import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
+
+import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA;
 
 public class ConfluentRegistryAvro extends FormatDescriptor {
 
     private Class<? extends SpecificRecord> recordClass;
     private String avroSchema;
-    private String namespace;
-    private String recordName;
+    private String topic;
     private String registryUrl;
-    private Boolean deriveSchema = false;
+    private Boolean toSchema = false;
+    private Boolean fromSchema = false;
 
     /**
      * Format descriptor for Apache Avro records with Confluent Schema registry.
@@ -47,14 +48,19 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
     }
 
     /**
-     * Sets the Avro namespace for converting table schema to Avro schema.
-     *
-     * @param namespace Avro schema string
+     * Enable converting table schema to Avro schema.
      */
-    public ConfluentRegistryAvro fromTableSchema(String namespace, String recordName) {
-        Preconditions.checkNotNull(namespace);
-        this.namespace = namespace;
-        this.recordName = recordName;
+    public ConfluentRegistryAvro fromTableSchema() {
+        this.fromSchema = true;
+        return this;
+    }
+
+    /**
+     * Sets the Kafka topic for converting table schema to Avro schema.
+     */
+    public ConfluentRegistryAvro topic(String topic) {
+        Preconditions.checkNotNull(topic);
+        this.topic = topic;
         return this;
     }
 
@@ -70,10 +76,10 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
     }
 
     /**
-     * Enable derive table schema from Avro
+     * Enable deriving table schema from Avro
      */
     public ConfluentRegistryAvro deriveTableSchema() {
-        this.deriveSchema = true;
+        this.toSchema = true;
         return this;
     }
 
@@ -83,25 +89,31 @@ public class ConfluentRegistryAvro extends FormatDescriptor {
 
         if (null != recordClass) {
             properties.putClass(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS, recordClass);
-            properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
+
         if (null != avroSchema) {
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA, avroSchema);
-            properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
-        if (null == avroSchema) {
-            properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_NAMESPACE, namespace);
-            properties.putString(ConfluentRegistryAvroValidator.FORMAT_AVRO_RECORD_NAME, recordName);
+
+        if (null != registryUrl) {
             properties.putString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL, registryUrl);
         }
 
-        if (deriveSchema) {
+        if (toSchema) {
             if (null != recordClass) {
                 properties.putProperties(new AvroSchema().recordClass(recordClass).toProperties());
             }
             if (null != avroSchema) {
                 properties.putProperties(new AvroSchema().avroSchema(avroSchema).toProperties());
             }
+        }
+
+        if (fromSchema != null) {
+            properties.putBoolean(FORMAT_DERIVE_SCHEMA, fromSchema);
+        }
+
+        if (topic != null) {
+            properties.putString(ConfluentRegistryAvroValidator.FORMAT_TOPIC, topic);
         }
 
         return properties.asMap();

@@ -6,6 +6,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.TableFormatFactoryBase;
@@ -31,16 +32,14 @@ public class ConfluentRegistryAvroRowFormatFactory extends TableFormatFactoryBas
         final List<String> properties = new ArrayList<>();
         properties.add(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS);
         properties.add(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA);
-        properties.add(ConfluentRegistryAvroValidator.FORMAT_AVRO_NAMESPACE);
-        properties.add(ConfluentRegistryAvroValidator.FORMAT_AVRO_RECORD_NAME);
         properties.add(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL);
+        properties.add(KafkaValidator.CONNECTOR_TOPIC);
         return properties;
     }
 
     @Override
     public DeserializationSchema<Row> createDeserializationSchema(Map<String, String> properties) {
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-
         // create and configure
         if (descriptorProperties.containsKey(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS)) {
             return new ConfluentRegistryAvroRowDeserializationSchema(
@@ -59,25 +58,30 @@ public class ConfluentRegistryAvroRowFormatFactory extends TableFormatFactoryBas
     public SerializationSchema<Row> createSerializationSchema(Map<String, String> properties) {
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
+        final String topic = descriptorProperties.getOptionalString(ConfluentRegistryAvroValidator.FORMAT_TOPIC)
+                .orElse(descriptorProperties.getString(KafkaValidator.CONNECTOR_TOPIC));
+
         // create and configure
         if (descriptorProperties.containsKey(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS)) {
             return new ConfluentRegistryAvroRowSerializationSchema(
                 descriptorProperties.getClass(ConfluentRegistryAvroValidator.FORMAT_RECORD_CLASS, SpecificRecord.class),
-                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL)
+                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL),
+                descriptorProperties.getString(KafkaValidator.CONNECTOR_TOPIC) + "-value"
             );
         } else if (descriptorProperties.containsKey(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA)) {
             return new ConfluentRegistryAvroRowSerializationSchema(
                 descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_AVRO_SCHEMA),
-                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL)
+                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL),
+                topic + "-value"
             );
         } else {
             return new ConfluentRegistryAvroRowSerializationSchema(
                 RowToAvroSchemaConverter.convertTableSchema(
                         deriveSchema(descriptorProperties.asMap()),
-                        descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_AVRO_RECORD_NAME),
-                        descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_AVRO_NAMESPACE)
+                        topic
                 ).toString(),
-                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL)
+                descriptorProperties.getString(ConfluentRegistryAvroValidator.FORMAT_REGISTRY_URL),
+                topic + "-value"
             );
         }
     }

@@ -16,13 +16,13 @@ public class ConfluentRegistryAvroRowSerializationSchema extends RegistryAvroRow
         super(recordClazz, schemaPublisherProvider);
     }
 
-    public ConfluentRegistryAvroRowSerializationSchema(Class<? extends SpecificRecord> recordClazz, String url,
+    public ConfluentRegistryAvroRowSerializationSchema(Class<? extends SpecificRecord> recordClazz, String url, String subject,
                                                        int identityMapCapacity) {
-        this(recordClazz, new CachedSchemaPublisherProvider(url, identityMapCapacity));
+        this(recordClazz, new CachedSchemaPublisherProvider(url, subject, identityMapCapacity));
     }
 
-    public ConfluentRegistryAvroRowSerializationSchema(Class<? extends SpecificRecord> recordClazz, String url) {
-        this(recordClazz, new CachedSchemaPublisherProvider(url, DEFAULT_IDENTITY_MAP_CAPACITY));
+    public ConfluentRegistryAvroRowSerializationSchema(Class<? extends SpecificRecord> recordClazz, String url, String subject) {
+        this(recordClazz, new CachedSchemaPublisherProvider(url, subject, DEFAULT_IDENTITY_MAP_CAPACITY));
     }
 
     private ConfluentRegistryAvroRowSerializationSchema(String avroSchemaString,
@@ -30,30 +30,33 @@ public class ConfluentRegistryAvroRowSerializationSchema extends RegistryAvroRow
         super(avroSchemaString, schemaPublisherProvider);
     }
 
-    public ConfluentRegistryAvroRowSerializationSchema(String avroSchemaString, String url, int identityMapCapacity) {
-        this(avroSchemaString, new CachedSchemaPublisherProvider(url, identityMapCapacity));
+    public ConfluentRegistryAvroRowSerializationSchema(String avroSchemaString, String url, String subject, int identityMapCapacity) {
+        this(avroSchemaString, new CachedSchemaPublisherProvider(url, subject, identityMapCapacity));
     }
 
-    public ConfluentRegistryAvroRowSerializationSchema(String avroSchemaString, String url) {
-        this(avroSchemaString, new CachedSchemaPublisherProvider(url, DEFAULT_IDENTITY_MAP_CAPACITY));
+    public ConfluentRegistryAvroRowSerializationSchema(String avroSchemaString, String url, String subject) {
+        this(avroSchemaString, new CachedSchemaPublisherProvider(url, subject, DEFAULT_IDENTITY_MAP_CAPACITY));
     }
 
     private static class CachedSchemaPublisherProvider implements SchemaPublisher.SchemaPublisherProvider {
 
         private static final long serialVersionUID = 8701436325871250L;
         private final String url;
+        private final String subject;
         private final int identityMapCapacity;
 
-        CachedSchemaPublisherProvider(String url, int identityMapCapacity) {
+        CachedSchemaPublisherProvider(String url, String subject, int identityMapCapacity) {
             this.url = url;
+            this.subject = subject;
             this.identityMapCapacity = identityMapCapacity;
         }
 
         @Override
         public SchemaPublisher get() {
-            return new ConfluentSchemaRegistryPublisher(new CachedSchemaRegistryClient(
-                    url,
-                    identityMapCapacity));
+            return new ConfluentSchemaRegistryPublisher(
+                    new CachedSchemaRegistryClient(url, identityMapCapacity),
+                    subject
+            );
         }
     }
 }
