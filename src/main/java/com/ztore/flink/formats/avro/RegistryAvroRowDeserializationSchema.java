@@ -346,8 +346,8 @@ public class RegistryAvroRowDeserializationSchema implements DeserializationSche
         return convertedArray;
     }
 
-    private void readObject(ObjectInputStream inputStream) throws ClassNotFoundException, IOException {
-        inputStream.defaultReadObject();
+    private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException {
+        in.defaultReadObject();
         if (recordClazz != null) {
             schema = SpecificData.get().getSchema(recordClazz);
             datumReader = new SpecificDatumReader<>(schema);
